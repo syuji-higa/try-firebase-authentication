@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Sing-In</title>
+  <script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css" />
+</head>
+<body>
+  <div id="firebaseui-auth-container"></div>
+
+  <button id="sign-out" onclick="onSingOut()">Sign-Out</button>
+
+  <div id="sign-in-status"></div>
+  <pre id="account-details"></pre>
+
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-app.js"></script>
+
+  <!-- Add Firebase products that you want to use -->
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-firestore.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-analytics.js"></script>
+
+  <script>
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyCn3b3c6TKu3VcsWfBOlNHOMguHp8u077I",
+      authDomain: "fir-sign-in-fc332.firebaseapp.com",
+      databaseURL: "https://fir-sign-in-fc332.firebaseio.com",
+      projectId: "fir-sign-in-fc332",
+      storageBucket: "fir-sign-in-fc332.appspot.com",
+      messagingSenderId: "731905649362",
+      appId: "1:731905649362:web:7d64e00bae1763e7261b0b",
+      measurementId: "G-H9GSSYZQP1"
+    }
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig)
+    firebase.analytics()
+
+    // Send token to your backend via HTTPS
+    async function sendToken(token) {
+      await fetch('http://localhost:5001/', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `idToken=${token}`
+      })
+        .catch((err) => console.error(err))
+    }
+
+    // FirebaseUI config.
+    const uiConfig = {
+      signInSuccessUrl: '/',
+      signInFlow: 'popup',
+      signInOptions: [
+        // Leave the lines as is for the providers you want to offer your users.
+        firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+        // firebase.auth.FacebookAuthProvider.PROVIDER_ID,
+        // firebase.auth.TwitterAuthProvider.PROVIDER_ID,
+        // firebase.auth.GithubAuthProvider.PROVIDER_ID,
+        // firebase.auth.EmailAuthProvider.PROVIDER_ID,
+        // firebase.auth.PhoneAuthProvider.PROVIDER_ID,
+        // firebaseui.auth.AnonymousAuthProvider.PROVIDER_ID
+      ],
+      // tosUrl and privacyPolicyUrl accept either url string or a callback
+      // function.
+      // Terms of service url/callback.
+      tosUrl: 'terms.html',
+      // Privacy policy url/callback.
+      privacyPolicyUrl: function() {
+        window.location.assign('privacy-policy.html')
+      }
+    }
+
+    // Initialize the FirebaseUI Widget using Firebase.
+    const ui = new firebaseui.auth.AuthUI(firebase.auth())
+    // The start method will wait until the DOM is loaded.
+    ui.start('#firebaseui-auth-container', uiConfig)
+
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        const { displayName, email, emailVerified, photoURL, uid, phoneNumber, providerData } = user
+        console.log({ displayName, email, emailVerified, photoURL, uid, phoneNumber, providerData })
+
+        user.getIdToken().then((accessToken) => {
+          document.getElementById('firebaseui-auth-container').style.display = 'none'
+          document.getElementById('sign-out').style.display = 'block'
+          document.getElementById('sign-in-status').textContent = 'Signed in'
+          document.getElementById('account-details').textContent = JSON.stringify({
+            displayName: displayName,
+            email: email,
+            emailVerified: emailVerified,
+            phoneNumber: phoneNumber,
+            photoURL: photoURL,
+            uid: uid,
+            accessToken: accessToken,
+            providerData: providerData
+          }, null, '  ')
+          
+          sendToken(accessToken)
+        })
+      } else {
+        document.getElementById('firebaseui-auth-container').style.display = 'block'
+        document.getElementById('sign-out').style.display = 'none'
+        document.getElementById('sign-in-status').textContent = 'Signed out'
+        document.getElementById('account-details').textContent = 'null'
+      }
+    }, (error) => console.log(error))
+
+    function onSingOut() {
+      firebase.auth().signOut().then(() => {
+        // Sign-out successful.
+        console.log('Sign-out')
+      }).catch((err) => console.log(err))
+    }
+  </script>
+</body>
+</html>

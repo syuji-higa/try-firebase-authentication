@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Sing-In</title>
+</head>
+<body>
+  <!-- Sign-In -->
+  <button id="sign-in" onclick="onSingIn()">Sign-In</button>
+  <script>
+    function onSingIn() {
+      const provider = new firebase.auth.GoogleAuthProvider()
+      // provider.addScope('https://www.googleapis.com/auth/contacts.readonly')
+      firebase.auth().languageCode = 'ja'
+      provider.setCustomParameters({
+        'login_hint': 'user@example.com'
+      })
+
+      firebase.auth().signInWithPopup(provider)
+        .then(async (result) => {
+          // The signed-in user info.
+          const { displayName, email, photoURL } = result.user
+          console.log({ displayName, email, photoURL })
+
+          // This gives you a Google Access Token. You can use it to access the Google API.
+          const token = result.credential.accessToken
+          await sendToken(token)
+
+          toggleButton(true)
+        })
+        .catch(function(error) {
+          // Handle Errors here.
+          const errorCode = error.code
+          const errorMessage = error.message
+          // The email of the user's account used.
+          const email = error.email
+          // The firebase.auth.AuthCredential type that was used.
+          const credential = error.credential
+        })
+    }
+  </script>
+
+  <!-- Sign-Out -->
+  <button id="sign-out" onclick="onSingOut()">Sign-Out</button>
+  <script>
+    function onSingOut() {
+      firebase.auth().signOut().then(() => {
+        // Sign-out successful.
+        console.log('Sign-out')
+        toggleButton(false)
+      }).catch((err) => console.log(err))
+    }
+  </script>
+
+  <!-- Button Style -->
+  <script>
+    const signInEl = document.getElementById('sign-in')
+    const signOutEl = document.getElementById('sign-out')
+
+    signInEl.style.display = 'none'
+    signOutEl.style.display = 'none'
+
+    function toggleButton(isSignIn) {
+      signInEl.style.display = !isSignIn ? 'block' : 'none'
+      signOutEl.style.display = isSignIn ? 'block' : 'none'
+    }
+  </script>
+
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-app.js"></script>
+
+  <!-- Add Firebase products that you want to use -->
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-firestore.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/7.22.1/firebase-analytics.js"></script>
+
+  <script>
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyCn3b3c6TKu3VcsWfBOlNHOMguHp8u077I",
+      authDomain: "fir-sign-in-fc332.firebaseapp.com",
+      databaseURL: "https://fir-sign-in-fc332.firebaseio.com",
+      projectId: "fir-sign-in-fc332",
+      storageBucket: "fir-sign-in-fc332.appspot.com",
+      messagingSenderId: "731905649362",
+      appId: "1:731905649362:web:7d64e00bae1763e7261b0b",
+      measurementId: "G-H9GSSYZQP1"
+    }
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig)
+    firebase.analytics()
+
+    // Check for Sign-In & Session
+    const unsubscribe = firebase.auth().onAuthStateChanged(async (authUser) => {
+      if(authUser) {
+        const { displayName, email, photoURL } = authUser
+        console.log({ displayName, email, photoURL })
+
+        const token = await getToken(authUser.refreshToken)
+        await sendToken(token)
+      }
+
+      toggleButton(authUser)
+
+      unsubscribe()
+    })
+
+    // Get token
+    async function getToken(refreshToken) {
+      const params = new URLSearchParams()
+      params.append('grant_type', 'refresh_token')
+      params.append('refresh_token', refreshToken)
+
+      const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseConfig.apiKey}`, {
+          method: 'POST',
+          body: params
+        })
+        .catch(err => console.error(err))
+      const { id_token } = await res.json()
+      return id_token
+    }
+
+    // Send token to your backend via HTTPS
+    async function sendToken(token) {
+      await fetch('http://localhost:5001/', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `idToken=${token}`
+      })
+        .catch((err) => console.error(err))
+    }
+  </script>
+</body>
+</html>
